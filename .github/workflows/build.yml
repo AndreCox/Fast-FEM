@@ -50,7 +50,7 @@ jobs:
         run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build (Windows)
         run: cmake --build build --config Release
-      - name: Upload Windows artifact **(Corrected)**
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: fastfem-windows
@@ -90,7 +90,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: fastfem-windows
-          path: artifacts
+          path: artifacts/windows
       - name: Package Windows Asset 📦
         run: zip -r artifacts/fastfem-windows.zip artifacts/windows/
       - name: Create GitHub Release
