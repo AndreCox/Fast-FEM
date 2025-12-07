@@ -4,6 +4,16 @@
 #include <cstdint>
 #include "serialization.h"
 
+#ifdef _MSC_VER
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+#endif
+#include <cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 GUIHandler::GUIHandler(FEMSystem &system, GraphicsRenderer &renderer, sf::RenderWindow &window)
     : window(window), fem_system(system), renderer(renderer),
       show_system_controls(true), show_node_editor(false), show_beam_editor(false)

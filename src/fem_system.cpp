@@ -1,3 +1,13 @@
+#ifdef _MSC_VER
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+#endif
+#include <cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #include "fem_system.h"
 
 FEMSystem::FEMSystem(std::vector<Node> &n, std::vector<Beam> &s, std::vector<MaterialProfile> &materials, std::vector<BeamProfile> &beam_profiles)

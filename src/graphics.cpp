@@ -1,5 +1,20 @@
 #include "graphics.h"
 
+#ifdef _WIN32
+#ifndef WINVER
+#define WINVER 0x0A00
+#endif
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+#include <windows.h> // for UINT, GetDpiForWindow, etc.
+#endif
+
+#include <cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 GraphicsRenderer::GraphicsRenderer(FEMSystem const &springSystem)
     : worldWidth(1.2f),
       worldHeight(1.2f),

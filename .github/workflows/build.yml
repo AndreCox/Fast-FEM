@@ -14,7 +14,10 @@ jobs:
       - name: Install build tools and SFML
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libsfml-dev
+          sudo apt-get install -y build-essential cmake \
+            libx11-dev libxrandr-dev libxcursor-dev libxi-dev libxext-dev \
+            libgl1-mesa-dev libudev-dev libopenal-dev libasound2-dev pkg-config \
+            libogg-dev libvorbis-dev libflac-dev
       - name: Configure (Linux)
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build (Linux)
@@ -35,7 +38,7 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
           C:\vcpkg\bootstrap-vcpkg.bat
-          C:\vcpkg\vcpkg.exe install sfml:x64-windows
+          C:\vcpkg\vcpkg.exe install libogg:x64-windows libvorbis:x64-windows libflac:x64-windows
       - name: Configure (Windows)
         run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build (Windows)

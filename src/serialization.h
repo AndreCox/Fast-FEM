@@ -1,7 +1,8 @@
 #pragma once
 #include <fstream>
+#include <cstdint>
 
-constexpr u_int32_t FILE_VERSION = 0x53595356; // "SYSV" magic number
+constexpr uint32_t FILE_VERSION = 0x53595356; // "SYSV" magic number
 
 void writeString(std::ofstream &ofs, const std::string &str);
 std::string readString(std::ifstream &ifs);
