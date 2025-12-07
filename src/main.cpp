@@ -98,11 +98,11 @@ int main()
     // Define beams (beams)
     std::vector<Beam>
         beams = {
-            Beam(0, 1, 0, 2, true),
-            Beam(0, 2, 1, 3, true),
-            Beam(1, 2, 0, 2, true),
-            Beam(1, 3, 1, 3, true),
-            Beam(2, 3, 0, 2, true),
+            Beam(0, 1, 0, 0, true),
+            Beam(0, 2, 1, 1, true),
+            Beam(1, 2, 0, 0, true),
+            Beam(1, 3, 1, 1, true),
+            Beam(2, 3, 0, 0, true),
             Beam(3, 4, 1, 1, false),
         };
 

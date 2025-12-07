@@ -143,7 +143,7 @@ Tip: use `build/debug/compile_commands.json` for editor integrations like code n
 - **GUI:** [ImGui](https://github.com/ocornut/imgui), [ImGui-SFML](https://github.com/eliasdaler/imgui-sfml), [SFML](https://www.sfml-dev.org/)
 - **Development Practice:** Keep new features small and always add an example demonstrating their behavior.
 
-For more details, see the [documentation](documentation/) and example `.ffem` files.
+For more details, see the [wiki](https://github.com/AndreCox/Fast-FEM/wiki) and example `.ffem` files.
 
 ---
 
