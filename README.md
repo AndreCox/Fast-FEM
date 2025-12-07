@@ -4,6 +4,8 @@
 
 Fast-FEM is a compact, high-performance finite element method (FEM) sandbox written in C++ 17 with an immediate-mode GUI for interactive visualization and experimentation. It focuses on clarity and interactivity for rapid prototyping of beam elements, system assembly, and visualization. It supports Windows and Linux.
 
+For detailed documentation, see the [wiki](https://github.com/AndreCox/Fast-FEM/wiki).
+
 <!-- Badges -->
 
 [![build](https://img.shields.io/github/actions/workflow/status/AndreCox/Fast-FEM/build.yml?branch=main&label=build&style=flat-square)](https://github.com/AndreCox/Fast-FEM/actions)
@@ -55,6 +57,8 @@ It’s ideal for learning, demos, course projects, and small research prototypes
 
 ## Quick Start (Assuming Development Environment Setup)
 
+For detailed compilation instructions, see the [Compilation Guide](https://github.com/AndreCox/Fast-FEM/wiki/Compilation) on the wiki.
+
 If you have a C++17-capable compiler, CMake, and standard build tools installed, you can quickly get started:
 
 Clone, configure and build the debug configuration (allows for attaching a debugger and includes debug symbols):
@@ -83,6 +87,8 @@ cmake --build build/release --config Release -- -j$(nproc)
 
 ## Build (detailed)
 
+For more detailed build instructions and troubleshooting, see the [Build Guide on the Wiki](https://github.com/AndreCox/Fast-FEM/wiki/Compilation).
+
 Prerequisites:
 
 - C++17-capable compiler (GCC/MSVC/Clang)
@@ -99,6 +105,8 @@ VS Code tasks (preconfigured) are available to run the configure/build steps:
 ---
 
 ## Run
+
+For more information on running Fast-FEM, see the [Running Guide on the Wiki](https://github.com/AndreCox/Fast-FEM/wiki/Running).
 
 After building execute the generated binary:
 
