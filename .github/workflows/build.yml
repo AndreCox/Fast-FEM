@@ -9,6 +9,8 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      EXECUTABLE_NAME: main # change this if the binary name ever changes
     steps:
       - uses: actions/checkout@v5
       - name: Install build tools and SFML
@@ -22,13 +24,13 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build (Linux)
         run: cmake --build build --config Release -- -j
+      - name: Prepare Final Package (Linux)
+        run: |
+          mkdir dist
+          cp build/${{ env.EXECUTABLE_NAME }} dist/
+          cp -r build/resources dist/
       - name: Package (Linux)
-        run: tar -czf fastfem-linux.tar.gz -C build/Release .
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fastfem-linux
-          path: fastfem-linux.tar.gz
+        run: tar -czf fastfem-linux.tar.gz -C dist .
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
