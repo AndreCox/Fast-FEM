@@ -100,12 +100,12 @@ int main()
     // Define beams (beams)
     std::vector<Beam>
         beams = {
-            Beam(0, 1, 0, 2),
-            Beam(0, 2, 1, 3),
-            Beam(1, 2, 0, 2),
-            Beam(1, 3, 1, 3),
-            Beam(2, 3, 0, 2),
-            Beam(3, 4, 1, 1),
+            Beam(0, 1, 0, 2, true),
+            Beam(0, 2, 1, 3, true),
+            Beam(1, 2, 0, 2, true),
+            Beam(1, 3, 1, 3, true),
+            Beam(2, 3, 0, 2, true),
+            Beam(3, 4, 1, 1, false),
         };
 
     FEMSystem fem_system(nodes, beams, material_profiles, beam_profiles);

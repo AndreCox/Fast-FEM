@@ -313,7 +313,7 @@ int FEMSystem::solve_system()
         // The three DOFs for node i are at indices i*3, i*3+1, and i*3+2
         double u = displacement(i * 3);             // x-displacement
         double v = displacement(i * 3 + 1);         // y-displacement
-        double theta_rad = displacement(i * 3 + 2); // Rotation (in radians) <-- NEW
+        double theta_rad = displacement(i * 3 + 2); // Rotation (in radians)
 
         // Convert rotation to degrees for readability
         double theta_deg = theta_rad * 180.0 / M_PI;
@@ -354,7 +354,7 @@ int FEMSystem::solve_system()
 
     double total_reaction_x = 0.0;
     double total_reaction_y = 0.0;
-    double total_reaction_m = 0.0; // NEW: Total Reaction Moment
+    double total_reaction_m = 0.0; // Total Reaction Moment
 
     for (int i = 0; i < num_nodes; ++i)
     {
@@ -371,7 +371,7 @@ int FEMSystem::solve_system()
 
             double rx = reactions(i * 3);     // x-Reaction Force
             double ry = reactions(i * 3 + 1); // y-Reaction Force
-            double rm = reactions(i * 3 + 2); // NEW: z-Reaction Moment
+            double rm = reactions(i * 3 + 2); // z-Reaction Moment
 
             std::cout << "  Node " << i << " (" << constraint_str << "): Fx=" << rx << " N, Fy=" << ry << " N, Mz=" << rm << " Nm\n";
 

@@ -79,4 +79,8 @@ public:
 
     // Get stress color
     sf::Color getStressColor(float stress, float min_stress, float max_stress) const;
+
+    // Scale factor applied to computed displacements when rendering.
+    // Public so UI or external code can adjust for visibility (default = 1.0 = no scaling).
+    float displacementScale = 1.0f;
 };

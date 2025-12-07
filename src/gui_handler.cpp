@@ -117,6 +117,7 @@ void GUIHandler::render()
     beamEditor();
     materialEditor();
     profileEditor();
+    visualizationEditor();
     handleSavePopup();
     handleLoadPopup();
     handleDPIAdjust();
@@ -244,7 +245,7 @@ void GUIHandler::nodeEditor()
         ImGui::PopID();
     }
 
-    // --- New node creation UI ---
+    // node creation UI
     ImGui::Separator();
     ImGui::Text("Create New Node:");
     static float new_x = 0.0f;
@@ -422,6 +423,16 @@ void GUIHandler::beamEditor()
             ImGui::TextDisabled("No materials available");
         }
 
+        // Truss checkbox: toggles whether beam is modeled as a truss (ignores moment of inertia)
+        bool is_truss = beam.is_truss;
+        if (ImGui::Checkbox("Truss", &is_truss))
+        {
+            beam.is_truss = is_truss;
+            beams_changed = true;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(moment of inertia ignored)");
+
         // Display stress
         ImGui::SameLine();
         ImGui::Text("Stress: %.2f", beam.stress);
@@ -462,6 +473,12 @@ void GUIHandler::beamEditor()
         else
             ImGui::TextDisabled("No materials available");
 
+        // Checkbox to mark new beam as a truss
+        static bool new_is_truss = false;
+        ImGui::Checkbox("Truss", &new_is_truss);
+        ImGui::SameLine();
+        ImGui::TextDisabled("(moment of inertia ignored)");
+
         if (new_node_a == new_node_b)
         {
             ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Node A and B must be different to create a beam.");
@@ -477,7 +494,8 @@ void GUIHandler::beamEditor()
                 !profile_items.empty() && !material_items.empty())
             {
                 // Constructor assumed Beam(int n1, int n2, int material_idx, int shape_idx)
-                fem_system.beams.emplace_back(new_node_a, new_node_b, new_material_idx, new_profile_idx);
+                fem_system.beams.emplace_back(new_node_a, new_node_b, new_material_idx, new_profile_idx, new_is_truss);
+                // If Beam has an 'is_truss' member, set it here. If not, adjust Beam definition accordingly.
                 beams_changed = true;
             }
         }
@@ -582,7 +600,7 @@ void GUIHandler::systemControls()
         ImGui::Text("Node %d: u=%.6f m, v=%.6f m, theta=%.6f deg", i + 1,
                     fem_system.displacement(i * 3),     // NEW INDEX
                     fem_system.displacement(i * 3 + 1), // NEW INDEX
-                    theta_deg);                         // NEW: Rotation
+                    theta_deg);                         // NEW Rotation
     }
 
     // Beam stresses
@@ -806,6 +824,17 @@ void GUIHandler::handleLoadPopup()
             return;
         }
 
+        // TRUSS FLAG (uint8_t): read whether this beam is a truss
+        uint8_t is_truss_flag = 0;
+        ifs.read(reinterpret_cast<char *>(&is_truss_flag), sizeof(is_truss_flag));
+        if (!ifs)
+        {
+            error_msg = "Failed reading beam truss flag for beam " + std::to_string(i);
+            load_error = true;
+            return;
+        }
+        s.is_truss = (is_truss_flag != 0);
+
         // Validate indices
         if (mat_idx < 0 || mat_idx >= static_cast<int32_t>(fem_system.materials_list.size()) ||
             shape_idx < 0 || shape_idx >= static_cast<int32_t>(fem_system.beam_profiles_list.size()))
@@ -1003,6 +1032,12 @@ void GUIHandler::handleSavePopup()
         int32_t shape_idx = s.shape_idx;
         ofs.write(reinterpret_cast<const char *>(&mat_idx), sizeof(mat_idx));
         ofs.write(reinterpret_cast<const char *>(&shape_idx), sizeof(shape_idx));
+
+        // TRUSS FLAG (uint8_t): whether this beam is modeled as a truss
+        {
+            uint8_t is_truss_flag = s.is_truss ? 1u : 0u;
+            ofs.write(reinterpret_cast<const char *>(&is_truss_flag), sizeof(is_truss_flag));
+        }
     }
 
     // 6. Forces (Eigen::VectorXd)
@@ -1115,7 +1150,7 @@ void GUIHandler::profileEditor()
         }
     }
 
-    // --- New Profile Creation ---
+    // --- Profile Creation ---
     ImGui::Separator();
     ImGui::Text("Create New Profile:");
 
@@ -1396,6 +1431,12 @@ void GUIHandler::headerBar()
             {
                 renderer.autoZoomToFit();
             }
+
+            if (ImGui::MenuItem("Visualization"))
+            {
+                show_visualization_editor = !show_visualization_editor;
+            }
+
             if (ImGui::MenuItem("Adjust DPI Scaling"))
             {
                 request_dpi_adjust = true;
@@ -1492,6 +1533,111 @@ void GUIHandler::helpPage()
         ImGui::BulletText("Save and load truss systems using the 'File' menu. These use the custom .ffem binary format.");
         ImGui::BulletText("Adjust DPI scaling for better visibility on high-resolution displays.");
         ImGui::BulletText("Auto view and zoom features to fit the truss system within the viewport.");
+    }
+
+    ImGui::End();
+}
+
+// New: Visualization GUI window
+void GUIHandler::visualizationEditor()
+{
+    if (!show_visualization_editor)
+        return;
+
+    ImGui::Begin("Visualization", &show_visualization_editor, ImGuiWindowFlags_AlwaysAutoResize);
+
+    ImGui::Text("Rendering / Visualization Settings");
+    ImGui::Separator();
+
+    // Show and control displacement scale (public member on renderer)
+    float ds = renderer.displacementScale;
+    if (ImGui::SliderFloat("Displacement Scale", &ds, 0.0f, 50.0f, "%.2f"))
+    {
+        renderer.displacementScale = ds;
+    }
+
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted("Scale applied to computed displacements for visualization only (does not affect solver).");
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+
+    // Option: quick reset
+    if (ImGui::Button("Reset Scale"))
+    {
+        renderer.displacementScale = 1.0f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Auto Fit View"))
+    {
+        renderer.centerView();
+        renderer.autoZoomToFit();
+    }
+
+    // --- Force animation controls ---
+    ImGui::Separator();
+    ImGui::Text("Force Animation");
+    ImGui::Spacing();
+
+    // Persistent animation state across frames (kept local to this function)
+    static bool animate_forces = false;
+    static bool prev_animate_forces = false;
+    static float animate_time = 0.0f;
+    static float animate_speed = 0.5f;     // Hz
+    static float animate_amplitude = 1.0f; // multiplier (0 = no change, 1 = ±100%)
+    static Eigen::VectorXd saved_forces;
+
+    ImGui::Checkbox("Animate Forces", &animate_forces);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Capture Current Forces"))
+    {
+        // Capture baseline forces for the animation
+        saved_forces = fem_system.forces;
+        animate_time = 0.0f;
+    }
+
+    ImGui::SliderFloat("Speed (Hz)", &animate_speed, 0.05f, 5.0f, "%.2f");
+    ImGui::SliderFloat("Amplitude (multiplier)", &animate_amplitude, 0.0f, 3.0f, "%.2f");
+    ImGui::TextWrapped("Animation scales the captured forces by (1 + amplitude * sin(2π * speed * t)).");
+
+    // Handle start/stop transitions
+    if (animate_forces && !prev_animate_forces)
+    {
+        // starting animation: ensure we have a baseline
+        if (saved_forces.size() != fem_system.forces.size())
+            saved_forces = fem_system.forces;
+        animate_time = 0.0f;
+    }
+    else if (!animate_forces && prev_animate_forces)
+    {
+        // stopped: restore captured forces (if available) and re-solve once
+        if (saved_forces.size() == fem_system.forces.size())
+        {
+            fem_system.forces = saved_forces;
+            fem_system.solve_system();
+        }
+    }
+    prev_animate_forces = animate_forces;
+
+    // Perform per-frame animation update when enabled
+    if (animate_forces)
+    {
+        float dt = ImGui::GetIO().DeltaTime; // frame delta
+        animate_time += dt;
+
+        float phase = 2.0f * static_cast<float>(M_PI) * animate_speed * animate_time;
+        float factor = std::sin(phase) * animate_amplitude;
+
+        if (saved_forces.size() == fem_system.forces.size() && saved_forces.size() > 0)
+        {
+            fem_system.forces = saved_forces * (1.0 + factor);
+            fem_system.solve_system(); // update deformation for visualization
+        }
     }
 
     ImGui::End();

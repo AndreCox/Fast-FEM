@@ -25,7 +25,8 @@ GraphicsRenderer::GraphicsRenderer(FEMSystem const &springSystem)
       dragStartedInside(false),
       font(),
       text(font),
-      system(springSystem)
+      system(springSystem),
+      displacementScale(1.0f)
 {
     if (!font.openFromFile("resources/fonts/Roboto-Regular.ttf"))
     {
@@ -471,16 +472,16 @@ void GraphicsRenderer::drawSystem(sf::RenderWindow &window) const
 
         // 1. Get Displaced Endpoints positions (P0 and P3 for Bezier)
         sf::Vector2f p0_displaced(
-            system.nodes[n1_idx].position[0] + system.displacement(n1_idx * 3),
-            system.nodes[n1_idx].position[1] + system.displacement(n1_idx * 3 + 1));
+            system.nodes[n1_idx].position[0] + displacementScale * static_cast<float>(system.displacement(n1_idx * 3)),
+            system.nodes[n1_idx].position[1] + displacementScale * static_cast<float>(system.displacement(n1_idx * 3 + 1)));
 
         sf::Vector2f p3_displaced(
-            system.nodes[n2_idx].position[0] + system.displacement(n2_idx * 3),
-            system.nodes[n2_idx].position[1] + system.displacement(n2_idx * 3 + 1));
+            system.nodes[n2_idx].position[0] + displacementScale * static_cast<float>(system.displacement(n2_idx * 3)),
+            system.nodes[n2_idx].position[1] + displacementScale * static_cast<float>(system.displacement(n2_idx * 3 + 1)));
 
         // Calculate Bezier Control Points based on Rotation
-        float theta1_rad = static_cast<float>(system.displacement(n1_idx * 3 + 2));
-        float theta2_rad = static_cast<float>(system.displacement(n2_idx * 3 + 2));
+        float theta1_rad = displacementScale * static_cast<float>(system.displacement(n1_idx * 3 + 2));
+        float theta2_rad = displacementScale * static_cast<float>(system.displacement(n2_idx * 3 + 2));
 
         // Calculate the vector of the displaced beam chord
         sf::Vector2f chordDir = p3_displaced - p0_displaced;
@@ -576,8 +577,8 @@ void GraphicsRenderer::drawSystem(sf::RenderWindow &window) const
     int index = 0;
     for (const auto &node : system.nodes)
     {
-        sf::Vector2f pos(node.position[0] + system.displacement(index * 3),
-                         node.position[1] + system.displacement(index * 3 + 1));
+        sf::Vector2f pos(node.position[0] + displacementScale * static_cast<float>(system.displacement(index * 3)),
+                         node.position[1] + displacementScale * static_cast<float>(system.displacement(index * 3 + 1)));
 
         if (node.constraint_type == FixedPin)
         {
@@ -665,8 +666,8 @@ void GraphicsRenderer::drawSystem(sf::RenderWindow &window) const
         if (std::abs(fx) < 1e-6f && std::abs(fy) < 1e-6f)
             continue;
 
-        sf::Vector2f start(node.position[0] + system.displacement(i * 3),
-                           node.position[1] + system.displacement(i * 3 + 1));
+        sf::Vector2f start(node.position[0] + displacementScale * static_cast<float>(system.displacement(i * 3)),
+                           node.position[1] + displacementScale * static_cast<float>(system.displacement(i * 3 + 1)));
         sf::Vector2f end = start + sf::Vector2f(fx, fy);
 
         sf::Vertex line[2];

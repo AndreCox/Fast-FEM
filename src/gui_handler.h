@@ -37,11 +37,14 @@ private:
     void materialEditor();
     void profileEditor();
 
+    void visualizationEditor();
+
     void helpPage();
 
     bool show_system_controls = true;
     bool show_node_editor = false;
     bool show_beam_editor = false;
+    bool show_visualization_editor = false;
     bool request_save_popup = false;
     bool request_load_popup = false;
     bool request_dpi_adjust = false;

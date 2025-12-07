@@ -25,9 +25,9 @@ public:
         k_matrix.setZero();
     }
 
-    Beam(int n1, int n2, int mat, int shp)
+    Beam(int n1, int n2, int mat, int shp, bool truss)
         : nodes{n1, n2}, k(0.0), stress(0.0f),
-          material_idx(mat), shape_idx(shp), is_truss(true) // just keep is_truss to true for simplicity
+          material_idx(mat), shape_idx(shp), is_truss(truss) // just keep is_truss to true for simplicity
     {
         k_matrix.setZero();
     }
