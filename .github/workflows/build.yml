@@ -91,6 +91,8 @@ jobs:
         with:
           name: fastfem-windows
           path: artifacts
+      - name: Package Windows Asset 📦
+        run: zip -r artifacts/fastfem-windows.zip artifacts/windows/
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
