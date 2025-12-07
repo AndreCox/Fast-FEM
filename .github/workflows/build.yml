@@ -55,6 +55,25 @@ jobs:
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Prepare release info
+        id: prep_release
+        run: |
+          # compute tag as an increasing version using the run number
+          TAG="v${GITHUB_RUN_NUMBER}"
+          # try to get the latest commit subject (fallback to tag if empty)
+          COMMIT_MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "")
+          if [ -z "$COMMIT_MSG" ]; then
+            NAME="$TAG"
+          else
+            # sanitize commit message (single-line, remove quotes, limit length)
+            NAME=$(echo "$COMMIT_MSG" | tr '\n' ' ' | sed 's/[\"'"'"']//g' | cut -c1-100)
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
       - name: Download linux artifact
         uses: actions/download-artifact@v4
         with:
@@ -71,8 +90,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: release-${{ github.run_number }}
-          release_name: Release ${{ github.run_number }}
+          tag_name: ${{ steps.prep_release.outputs.tag }}
+          release_name: ${{ steps.prep_release.outputs.name }}
           draft: false
           prerelease: false
       - name: Upload Linux asset
