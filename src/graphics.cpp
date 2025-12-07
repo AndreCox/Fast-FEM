@@ -327,19 +327,18 @@ float GraphicsRenderer::getViewScale(const sf::RenderWindow &window) const
 
 sf::Color GraphicsRenderer::getStressColor(float stress, float min_stress, float max_stress) const
 {
-    float normalized;
     float abs_max = std::max(std::abs(min_stress), std::abs(max_stress));
-
     if (abs_max < 1e-6f)
     {
-        return sf::Color::White;
+        return sf::Color(200, 200, 200); // Light gray for zero stress
     }
 
-    normalized = stress / abs_max;
+    float normalized = stress / abs_max; // Range: -1 to 1
 
     if (normalized < 0)
     {
-        float t = -normalized;
+        // Compression: White → Blue
+        float t = -normalized; // 0 to 1
         uint8_t r = static_cast<uint8_t>(255 * (1 - t));
         uint8_t g = static_cast<uint8_t>(255 * (1 - t));
         uint8_t b = 255;
@@ -347,7 +346,8 @@ sf::Color GraphicsRenderer::getStressColor(float stress, float min_stress, float
     }
     else
     {
-        float t = normalized;
+        // Tension: White → Red
+        float t = normalized; // 0 to 1
         uint8_t r = 255;
         uint8_t g = static_cast<uint8_t>(255 * (1 - t));
         uint8_t b = static_cast<uint8_t>(255 * (1 - t));

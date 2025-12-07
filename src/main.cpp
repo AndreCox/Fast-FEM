@@ -73,8 +73,6 @@ int main()
     std::vector<BeamProfile> beam_profiles = {
         steel_beam,
         aluminum_beam,
-        steel_truss,
-        aluminum_truss,
     };
 
     // simple cantilever beam test case

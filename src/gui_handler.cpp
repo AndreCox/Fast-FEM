@@ -2,6 +2,14 @@
 #include <imgui-SFML.h>
 #include <fstream>
 #include "serialization.h"
+#include <filesystem>
+#include <sstream>
+#include <iomanip>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
+#include <atomic>
 
 #ifdef _MSC_VER
 #ifndef _USE_MATH_DEFINES
@@ -1538,6 +1546,54 @@ void GUIHandler::helpPage()
     ImGui::End();
 }
 
+namespace
+{
+    struct FrameTask
+    {
+        std::string filename;
+        sf::Image image; // store the captured image (copied on enqueue)
+    };
+
+    static std::deque<FrameTask> g_frame_queue;
+    static std::mutex g_frame_mutex;
+    static std::condition_variable g_frame_cv;
+    static std::atomic<bool> g_writer_running{false};
+    static std::atomic<bool> g_writer_started{false};
+
+    static void writerThreadFunc()
+    {
+        g_writer_running = true;
+        while (g_writer_running)
+        {
+            FrameTask task;
+            {
+                std::unique_lock<std::mutex> l(g_frame_mutex);
+                g_frame_cv.wait(l, []
+                                { return !g_frame_queue.empty() || !g_writer_running; });
+                if (!g_writer_running && g_frame_queue.empty())
+                    break;
+                if (g_frame_queue.empty())
+                    continue;
+                task = std::move(g_frame_queue.front());
+                g_frame_queue.pop_front();
+            }
+
+            // Save outside lock using sf::Image::saveToFile (no GL context required)
+            try
+            {
+                if (!task.image.saveToFile(task.filename))
+                {
+                    std::cerr << "Writer thread: failed to save frame " << task.filename << "\n";
+                }
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Writer thread exception: " << e.what() << "\n";
+            }
+        }
+    }
+} // namespace
+
 // New: Visualization GUI window
 void GUIHandler::visualizationEditor()
 {
@@ -1591,8 +1647,12 @@ void GUIHandler::visualizationEditor()
     static float animate_speed = 0.5f;     // Hz
     static float animate_amplitude = 1.0f; // multiplier (0 = no change, 1 = ±100%)
     static Eigen::VectorXd saved_forces;
+    // New: whether animation applies both positive and negative directions
+    static bool bidirectional_forces = true;
 
     ImGui::Checkbox("Animate Forces", &animate_forces);
+    ImGui::SameLine();
+    ImGui::Checkbox("Bidirectional Forces", &bidirectional_forces);
     ImGui::SameLine();
     if (ImGui::SmallButton("Capture Current Forces"))
     {
@@ -1603,7 +1663,7 @@ void GUIHandler::visualizationEditor()
 
     ImGui::SliderFloat("Speed (Hz)", &animate_speed, 0.05f, 5.0f, "%.2f");
     ImGui::SliderFloat("Amplitude (multiplier)", &animate_amplitude, 0.0f, 3.0f, "%.2f");
-    ImGui::TextWrapped("Animation scales the captured forces by (1 + amplitude * sin(2π * speed * t)).");
+    ImGui::TextWrapped("Animation scales the captured forces by sin(2*pi*speed*t) * amplitude. Use 'Bidirectional Forces' to clamp to positive-only.");
 
     // Handle start/stop transitions
     if (animate_forces && !prev_animate_forces)
@@ -1631,13 +1691,225 @@ void GUIHandler::visualizationEditor()
         animate_time += dt;
 
         float phase = 2.0f * static_cast<float>(M_PI) * animate_speed * animate_time;
-        float factor = std::sin(phase) * animate_amplitude;
+        float wave = std::sin(phase);
+
+        // Decide multiplier based on bidirectional setting
+        float factor = wave * animate_amplitude;
+        if (!bidirectional_forces)
+            factor = std::abs(wave) * animate_amplitude; // use absolute value for single-direction waveform
 
         if (saved_forces.size() == fem_system.forces.size() && saved_forces.size() > 0)
         {
-            fem_system.forces = saved_forces * (1.0 + factor);
+            fem_system.forces = saved_forces * factor;
             fem_system.solve_system(); // update deformation for visualization
         }
+    }
+
+    // --- Recording controls ---
+    ImGui::Separator();
+    ImGui::Text("Recording / Export");
+    ImGui::Spacing();
+
+    // Persistent state across frames
+    static bool recording = false;
+    static float record_fps = 24.0;
+    static int recorded_frames = 0;
+    static double record_accum = 0.0;
+    // New: user-configurable recording length (seconds) and elapsed time accumulator
+    static float record_length_seconds = 5.0f;
+    static double record_time_accum = 0.0;
+    static std::string out_dir = "record_frames";
+    static std::string out_prefix = "frame";
+    static bool auto_build_gif = false;
+    static bool delete_frames_after = false;
+
+    // Input fields
+    char dir_buf[512];
+    std::strncpy(dir_buf, out_dir.c_str(), sizeof(dir_buf));
+    dir_buf[sizeof(dir_buf) - 1] = '\0';
+    ImGui::InputText("Output Directory", dir_buf, sizeof(dir_buf));
+    out_dir = std::string(dir_buf);
+
+    char prefix_buf[128];
+    std::strncpy(prefix_buf, out_prefix.c_str(), sizeof(prefix_buf));
+    prefix_buf[sizeof(prefix_buf) - 1] = '\0';
+    ImGui::InputText("Filename Prefix", prefix_buf, sizeof(prefix_buf));
+    out_prefix = std::string(prefix_buf);
+
+    ImGui::SliderFloat("FPS", &record_fps, 1.0, 60.0, "%.0f");
+    ImGui::SliderFloat("Length (s)", &record_length_seconds, 0.5f, 600.0f, "%.1f");
+    ImGui::Checkbox("Auto-build GIF (requires ImageMagick `convert`)", &auto_build_gif);
+    ImGui::Checkbox("Delete frames after GIF created", &delete_frames_after);
+
+    ImGui::Spacing();
+
+    if (!recording)
+    {
+        if (ImGui::Button("Start Recording"))
+        {
+            // Prepare output directory
+            try
+            {
+                std::filesystem::create_directories(out_dir);
+            }
+            catch (...)
+            {
+                // ignore errors, we'll report failure on save
+            }
+            recorded_frames = 0;
+            record_accum = 0.0;
+            record_time_accum = 0.0;
+            recording = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Build GIF Now"))
+        {
+            // Build GIF from existing PNGs in directory using ImageMagick convert
+            std::ostringstream cmd;
+            // delay is in 1/100s units: delay = 100 / fps
+            int delay = static_cast<int>(std::round(100.0 / record_fps));
+            std::string pattern = out_dir + "/" + out_prefix + "_*.png";
+            std::string out_gif = out_dir + "/" + out_prefix + ".gif";
+            cmd << "convert -delay " << delay << " -loop 0 " << pattern << " " << out_gif;
+            int rc = std::system(cmd.str().c_str());
+            (void)rc; // ignore return for now
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Stop Recording"))
+        {
+            recording = false;
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("Frames: %d", recorded_frames);
+    ImGui::SameLine();
+    ImGui::Text("Elapsed: %.2fs", record_time_accum);
+
+    // Per-frame capture when recording:
+    if (recording)
+    {
+        // accumulate time and capture at record_fps
+        float dt = ImGui::GetIO().DeltaTime;
+        record_time_accum += dt;
+        record_accum += dt;
+        double frame_interval = 1.0 / record_fps;
+        while (record_accum >= frame_interval)
+        {
+            record_accum -= frame_interval;
+            // Capture current framebuffer and enqueue for background saving
+            try
+            {
+                sf::Vector2u sz = window.getSize();
+                if (sz.x > 0 && sz.y > 0)
+                {
+                    // Capture framebuffer using OpenGL
+                    std::vector<uint8_t> pixels(sz.x * sz.y * 4);
+                    glReadPixels(0, 0, sz.x, sz.y, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+
+                    // Flip vertically (OpenGL origin is bottom-left, image origin is top-left)
+                    std::vector<uint8_t> flipped(sz.x * sz.y * 4);
+                    for (unsigned int y = 0; y < sz.y; ++y)
+                    {
+                        std::memcpy(&flipped[y * sz.x * 4],
+                                    &pixels[(sz.y - 1 - y) * sz.x * 4],
+                                    sz.x * 4);
+                    }
+
+                    // Create SFML image from flipped pixel data
+                    sf::Image image({sz.x, sz.y}, flipped.data());
+
+                    // Construct filename with zero-padded index
+                    std::ostringstream ns;
+                    ns << out_dir << "/" << out_prefix << "_"
+                       << std::setw(5) << std::setfill('0') << recorded_frames << ".png";
+                    std::string fname = ns.str();
+
+                    // Start writer thread lazily
+                    if (!g_writer_started.load())
+                    {
+                        std::thread writer(writerThreadFunc);
+                        writer.detach(); // run in background
+                        g_writer_started = true;
+                    }
+
+                    // Enqueue the sf::Image (copy) for background saving
+                    {
+                        std::lock_guard<std::mutex> lg(g_frame_mutex);
+                        if (g_frame_queue.size() > 500)
+                        {
+                            g_frame_queue.pop_front();
+                        }
+                        FrameTask task;
+                        task.filename = fname;
+                        task.image = std::move(image);
+                        g_frame_queue.emplace_back(std::move(task));
+                    }
+                    g_frame_cv.notify_one();
+
+                    ++recorded_frames;
+                }
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Exception capturing frame: " << e.what() << "\n";
+                recording = false;
+                break;
+            }
+        }
+
+        // Auto-stop when elapsed recording time reached (if > 0)
+        if (record_length_seconds > 0.0f && record_time_accum >= static_cast<double>(record_length_seconds))
+        {
+            recording = false;
+        }
+    }
+    else if (!recording && recorded_frames > 0 && auto_build_gif)
+    {
+        // Wait for queue to drain briefly before building GIF
+        const int max_wait_ms = 5000;
+        int waited = 0;
+        while (waited < max_wait_ms)
+        {
+            {
+                std::lock_guard<std::mutex> lg(g_frame_mutex);
+                if (g_frame_queue.empty())
+                    break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            waited += 50;
+        }
+
+        // If queue not empty after waiting, we still attempt to build GIF; user may retry.
+        std::ostringstream cmd;
+        int delay = static_cast<int>(std::round(100.0 / record_fps));
+        std::string pattern = out_dir + "/" + out_prefix + "_*.png";
+        std::string out_gif = out_dir + "/" + out_prefix + ".gif";
+        cmd << "convert -delay " << delay << " -loop 0 " << pattern << " " << out_gif;
+        int rc = std::system(cmd.str().c_str());
+        (void)rc;
+        if (rc == 0 && delete_frames_after)
+        {
+            // Remove all matching frames
+            try
+            {
+                for (const auto &p : std::filesystem::directory_iterator(out_dir))
+                {
+                    std::string name = p.path().filename().string();
+                    if (name.rfind(out_prefix + "_", 0) == 0 && p.path().extension() == ".png")
+                    {
+                        std::filesystem::remove(p.path());
+                    }
+                }
+            }
+            catch (...)
+            {
+            }
+            recorded_frames = 0;
+        }
+        auto_build_gif = false;
     }
 
     ImGui::End();

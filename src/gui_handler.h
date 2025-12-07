@@ -5,13 +5,15 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
+#include <SFML/OpenGL.hpp>
 #include <cstdint>
+#include <vector>
+#include <cstring>
 
 class GUIHandler
 {
 public:
     GUIHandler(FEMSystem &system, GraphicsRenderer &renderer, sf::RenderWindow &window);
-
     void processEvent(const sf::Event &event);
     void render();
 
@@ -36,9 +38,7 @@ private:
     // material properties editors
     void materialEditor();
     void profileEditor();
-
     void visualizationEditor();
-
     void helpPage();
 
     bool show_system_controls = true;
@@ -65,4 +65,7 @@ private:
     ImGuiStyle base_imgui_style;
     float base_font_global_scale = 1.0f;
     float current_dpi_scale = 1.0f; // 1.0 == 100%
+
+    // Helper function to capture framebuffer
+    sf::Image captureFramebuffer();
 };
