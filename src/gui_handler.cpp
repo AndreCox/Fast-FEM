@@ -1,7 +1,6 @@
 #include "gui_handler.h"
 #include <imgui-SFML.h>
 #include <fstream>
-#include <cstdint>
 #include "serialization.h"
 
 #ifdef _MSC_VER
@@ -666,7 +665,7 @@ void GUIHandler::handleLoadPopup()
     }
 
     // 1. Header/Version
-    uint32_t version = 0;
+    std::uint32_t version = 0;
     ifs.read(reinterpret_cast<char *>(&version), sizeof(version));
     if (!ifs || version != FILE_VERSION)
     {
@@ -683,7 +682,7 @@ void GUIHandler::handleLoadPopup()
     fem_system.forces = Eigen::VectorXd();
 
     // 2. Material Profiles
-    uint32_t material_count = 0;
+    std::uint32_t material_count = 0;
     ifs.read(reinterpret_cast<char *>(&material_count), sizeof(material_count));
     if (!ifs)
     {
@@ -692,7 +691,7 @@ void GUIHandler::handleLoadPopup()
         return;
     }
     fem_system.materials_list.resize(material_count);
-    for (uint32_t i = 0; i < material_count; ++i)
+    for (std::uint32_t i = 0; i < material_count; ++i)
     {
         MaterialProfile &m = fem_system.materials_list[i];
         m.name = readString(ifs);
@@ -706,7 +705,7 @@ void GUIHandler::handleLoadPopup()
     }
 
     // 3. Beam Profiles
-    uint32_t profile_count = 0;
+    std::uint32_t profile_count = 0;
     ifs.read(reinterpret_cast<char *>(&profile_count), sizeof(profile_count));
     if (!ifs)
     {
@@ -715,7 +714,7 @@ void GUIHandler::handleLoadPopup()
         return;
     }
     fem_system.beam_profiles_list.resize(profile_count);
-    for (uint32_t i = 0; i < profile_count; ++i)
+    for (std::uint32_t i = 0; i < profile_count; ++i)
     {
         BeamProfile &p = fem_system.beam_profiles_list[i];
         p.name = readString(ifs);
@@ -731,7 +730,7 @@ void GUIHandler::handleLoadPopup()
     }
 
     // 4. Nodes
-    uint32_t node_count = 0;
+    std::uint32_t node_count = 0;
     ifs.read(reinterpret_cast<char *>(&node_count), sizeof(node_count));
     if (!ifs)
     {
@@ -740,7 +739,7 @@ void GUIHandler::handleLoadPopup()
         return;
     }
     fem_system.nodes.resize(node_count);
-    for (uint32_t i = 0; i < node_count; ++i)
+    for (std::uint32_t i = 0; i < node_count; ++i)
     {
         Node &n = fem_system.nodes[i];
         ifs.read(reinterpret_cast<char *>(&n.position[0]), sizeof(float) * 2);
@@ -761,7 +760,7 @@ void GUIHandler::handleLoadPopup()
     }
 
     // 5. Beams (now using indices)
-    uint32_t beam_count = 0;
+    std::uint32_t beam_count = 0;
     ifs.read(reinterpret_cast<char *>(&beam_count), sizeof(beam_count));
     if (!ifs)
     {
@@ -770,7 +769,7 @@ void GUIHandler::handleLoadPopup()
         return;
     }
     fem_system.beams.resize(beam_count);
-    for (uint32_t i = 0; i < beam_count; ++i)
+    for (std::uint32_t i = 0; i < beam_count; ++i)
     {
         Beam &s = fem_system.beams[i];
 
@@ -829,7 +828,7 @@ void GUIHandler::handleLoadPopup()
     }
 
     // 6. Forces (Eigen::VectorXd)
-    uint32_t fcount = 0;
+    std::uint32_t fcount = 0;
     ifs.read(reinterpret_cast<char *>(&fcount), sizeof(fcount));
     if (!ifs)
     {
@@ -955,7 +954,7 @@ void GUIHandler::handleSavePopup()
     ofs.write(reinterpret_cast<const char *>(&FILE_VERSION), sizeof(FILE_VERSION));
 
     // 2. Material Profiles
-    uint32_t material_count = static_cast<uint32_t>(fem_system.materials_list.size());
+    std::uint32_t material_count = static_cast<std::uint32_t>(fem_system.materials_list.size());
     ofs.write(reinterpret_cast<const char *>(&material_count), sizeof(material_count));
     for (const auto &m : fem_system.materials_list)
     {
@@ -964,7 +963,7 @@ void GUIHandler::handleSavePopup()
     }
 
     // 3. Beam Profiles
-    uint32_t profile_count = static_cast<uint32_t>(fem_system.beam_profiles_list.size());
+    std::uint32_t profile_count = static_cast<std::uint32_t>(fem_system.beam_profiles_list.size());
     ofs.write(reinterpret_cast<const char *>(&profile_count), sizeof(profile_count));
     for (const auto &p : fem_system.beam_profiles_list)
     {
@@ -975,7 +974,7 @@ void GUIHandler::handleSavePopup()
     }
 
     // 4. Nodes
-    uint32_t node_count = static_cast<uint32_t>(fem_system.nodes.size());
+    std::uint32_t node_count = static_cast<std::uint32_t>(fem_system.nodes.size());
     ofs.write(reinterpret_cast<const char *>(&node_count), sizeof(node_count));
     for (const auto &n : fem_system.nodes)
     {
@@ -986,7 +985,7 @@ void GUIHandler::handleSavePopup()
     }
 
     // 5. Beams (write node indices, stress, material_idx, shape_idx)
-    uint32_t beam_count = static_cast<uint32_t>(fem_system.beams.size());
+    std::uint32_t beam_count = static_cast<std::uint32_t>(fem_system.beams.size());
     ofs.write(reinterpret_cast<const char *>(&beam_count), sizeof(beam_count));
     for (const auto &s : fem_system.beams)
     {
@@ -1007,7 +1006,7 @@ void GUIHandler::handleSavePopup()
     }
 
     // 6. Forces (Eigen::VectorXd)
-    uint32_t fcount = static_cast<uint32_t>(fem_system.forces.size());
+    std::uint32_t fcount = static_cast<std::uint32_t>(fem_system.forces.size());
     ofs.write(reinterpret_cast<const char *>(&fcount), sizeof(fcount));
     if (fcount > 0)
     {
