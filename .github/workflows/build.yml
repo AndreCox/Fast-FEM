@@ -93,9 +93,9 @@ jobs:
           path: artifacts/windows
       - name: Package Windows Asset
         run: |
-          cd artifacts/
-          zip -r ../fastfem-windows.zip .
-          cd ..
+          cd artifacts/windows
+          zip -r ../../fastfem-windows.zip .
+          cd ../..
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -121,6 +121,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/fastfem-windows.zip
+          asset_path: ./fastfem-windows.zip
           asset_name: fastfem-windows.zip
           asset_content_type: application/zip
