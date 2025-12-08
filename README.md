@@ -59,6 +59,8 @@ It’s ideal for learning, demos, course projects, and small research prototypes
 
 ## Quick Start (Assuming Development Environment Setup)
 
+[![Fast-FEM Demo Video](https://img.youtube.com/vi/wOFJ3Ht_gPg/0.jpg)](https://youtu.be/wOFJ3Ht_gPg)
+
 For detailed compilation instructions, see the [Compilation Guide](https://github.com/AndreCox/Fast-FEM/wiki/Compilation) on the wiki.
 
 If you have a C++17-capable compiler, CMake, and standard build tools installed, you can quickly get started:

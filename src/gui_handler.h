@@ -41,6 +41,7 @@ private:
     void visualizationEditor();
     void helpPage();
     void outputEditor();
+    void drawGridHUD();
 
     bool show_system_controls = true;
     bool show_node_editor = false;

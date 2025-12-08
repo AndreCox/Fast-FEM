@@ -127,6 +127,7 @@ void GUIHandler::render()
     profileEditor();
     visualizationEditor();
     outputEditor();
+    drawGridHUD();
     handleSavePopup();
     handleLoadPopup();
     handleDPIAdjust();
@@ -134,6 +135,25 @@ void GUIHandler::render()
     headerBar();
 }
 
+void GUIHandler::drawGridHUD()
+{
+    ImGuiIO &io = ImGui::GetIO();
+    // Position bottom-left with padding; use no decorations so it's unobtrusive
+    ImGui::SetNextWindowBgAlpha(0.35f);
+    ImGui::SetNextWindowPos(ImVec2(8.0f, io.DisplaySize.y - 8.0f), ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+    ImGui::Begin("##grid_hud", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize);
+
+    std::string unitLabel = "1 ";
+    if (fem_system.unit_system == Metric)
+        unitLabel += "m";
+    else if (fem_system.unit_system == ImperialFeet)
+        unitLabel += "ft";
+    else
+        unitLabel += "in";
+
+    ImGui::Text("Grid: %s", unitLabel.c_str());
+    ImGui::End();
+}
 void GUIHandler::nodeEditor()
 {
     if (!show_node_editor)

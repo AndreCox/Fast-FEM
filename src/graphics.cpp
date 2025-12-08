@@ -327,55 +327,6 @@ void GraphicsRenderer::drawGrid(sf::RenderWindow &window) const
         line[1].color = gridColor;
         window.draw(line, 2, sf::PrimitiveType::Lines);
     }
-
-    // Draw grid unit label in screen coordinates (overlay)
-    try
-    {
-        // Save current view and switch to default (pixel coordinates)
-        sf::View prevView = window.getView();
-        window.setView(window.getDefaultView());
-
-        sf::Text label(font);
-        std::string unitLabel = "1 ";
-        switch (system.unit_system)
-        {
-        case Metric:
-            unitLabel += "m";
-            break;
-        case ImperialFeet:
-            unitLabel += "ft";
-            break;
-        case ImperialInches:
-            unitLabel += "in";
-            break;
-        default:
-            unitLabel += "m";
-            break;
-        }
-
-        label.setString(std::string("Grid: ") + unitLabel);
-        label.setFont(font);
-        label.setCharacterSize(14);
-        label.setFillColor(sf::Color::Black);
-        label.setOutlineColor(sf::Color::White);
-        label.setOutlineThickness(2.0f);
-        label.setStyle(sf::Text::Regular);
-
-        // Place near bottom-left with padding
-        float pad = 8.0f;
-        sf::Vector2u winSize = window.getSize();
-        sf::FloatRect lb = label.getLocalBounds();
-        float x = pad;
-        float y = static_cast<float>(winSize.y) - lb.size.y - lb.position.y - pad;
-        label.setPosition(sf::Vector2f(x, y));
-        window.draw(label);
-
-        // Restore previous view
-        window.setView(prevView);
-    }
-    catch (...)
-    {
-    }
 }
 
 float GraphicsRenderer::getViewScale(const sf::RenderWindow &window) const
