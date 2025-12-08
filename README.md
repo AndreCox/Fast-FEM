@@ -50,8 +50,10 @@ It’s ideal for learning, demos, course projects, and small research prototypes
 
 - Lightweight C++17 codebase
 - Interactive GUI (ImGui + SFML)
-- Example scene files (`courseproject2.ffem`, `oldcourseproject2.ffem`)
+- Example scene files
 - Recording and exporting simulation frames for videos
+- Support for high resolution monitors
+- Metric and imperial support
 
 ---
 
