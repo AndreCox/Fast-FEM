@@ -40,6 +40,7 @@ private:
     void profileEditor();
     void visualizationEditor();
     void helpPage();
+    void outputEditor();
 
     bool show_system_controls = true;
     bool show_node_editor = false;
@@ -60,6 +61,7 @@ private:
     // material properties boolean flags
     bool show_material_editor = false;
     bool show_profile_editor = false;
+    bool show_output_tab = false;
 
     // DPI scaling members
     ImGuiStyle base_imgui_style;

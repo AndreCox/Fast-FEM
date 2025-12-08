@@ -126,6 +126,7 @@ void GUIHandler::render()
     materialEditor();
     profileEditor();
     visualizationEditor();
+    outputEditor();
     handleSavePopup();
     handleLoadPopup();
     handleDPIAdjust();
@@ -637,6 +638,257 @@ void GUIHandler::systemControls()
             double stress_disp = fem_system.stressToDisplay(beam.stress);
             ImGui::TextColored(ImVec4(color.r / 255.f, color.g / 255.f, color.b / 255.f, 1.f),
                                "Beam %d: %.2f %s", index++, stress_disp, stress_label);
+        }
+    }
+
+    ImGui::End();
+}
+
+void GUIHandler::outputEditor()
+{
+    if (!show_output_tab)
+        return;
+
+    ImGui::Begin("Output", &show_output_tab, ImGuiWindowFlags_AlwaysAutoResize);
+
+    ImGui::Text("System Output / Export");
+    ImGui::Separator();
+
+    // Prepare reaction container so CSV export can also access it
+    Eigen::VectorXd reactions;
+    bool have_reactions = false;
+
+    // Node displacements table
+    ImGui::Text("Node Displacements (display units)");
+    if (ImGui::BeginTable("nodes_table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("#");
+        ImGui::TableSetupColumn("u");
+        ImGui::TableSetupColumn("v");
+        ImGui::TableSetupColumn("theta (deg)");
+        ImGui::TableSetupColumn("Constraint");
+        ImGui::TableHeadersRow();
+
+        for (int i = 0; i < fem_system.nodes.size(); ++i)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", i + 1);
+
+            double u = fem_system.lengthToDisplay(fem_system.displacement(i * 3));
+            double v = fem_system.lengthToDisplay(fem_system.displacement(i * 3 + 1));
+            double theta_deg = fem_system.displacement(i * 3 + 2) * 180.0 / M_PI;
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%.6f", u);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%.6f", v);
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%.6f", theta_deg);
+            ImGui::TableSetColumnIndex(4);
+            const char *cstr = "";
+            switch (fem_system.nodes[i].constraint_type)
+            {
+            case Free:
+                cstr = "Free";
+                break;
+            case Fixed:
+                cstr = "Fixed";
+                break;
+            case FixedPin:
+                cstr = "FixedPin";
+                break;
+            case Slider:
+                cstr = "Slider";
+                break;
+            }
+            ImGui::TextUnformatted(cstr);
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::Separator();
+
+    // Beam stresses table
+    ImGui::Text("Beam Stresses");
+    if (ImGui::BeginTable("beams_table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("#");
+        ImGui::TableSetupColumn("Nodes");
+        ImGui::TableSetupColumn("Stress");
+        ImGui::TableSetupColumn("Material/Profile");
+        ImGui::TableHeadersRow();
+
+        int idx = 1;
+        for (const auto &b : fem_system.beams)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", idx++);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%d - %d", b.nodes[0] + 1, b.nodes[1] + 1);
+            ImGui::TableSetColumnIndex(2);
+            double stress_disp = fem_system.stressToDisplay(b.stress);
+            ImGui::Text("%.3f", stress_disp);
+            ImGui::TableSetColumnIndex(3);
+            std::string mp = "";
+            if (b.material_idx >= 0 && b.material_idx < fem_system.materials_list.size())
+                mp += fem_system.materials_list[b.material_idx].name;
+            mp += "/";
+            if (b.shape_idx >= 0 && b.shape_idx < fem_system.beam_profiles_list.size())
+                mp += fem_system.beam_profiles_list[b.shape_idx].name;
+            ImGui::TextUnformatted(mp.c_str());
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::Separator();
+
+    // Reaction forces (display units)
+    ImGui::Text("Reaction Forces (display units)");
+    if (ImGui::BeginTable("reactions_table", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Node");
+        ImGui::TableSetupColumn("Rx");
+        ImGui::TableSetupColumn("Ry");
+        ImGui::TableSetupColumn("Rtheta");
+        ImGui::TableHeadersRow();
+
+        if (fem_system.reactions.size() == fem_system.total_dof && fem_system.total_dof > 0)
+        {
+            reactions = fem_system.reactions;
+            have_reactions = true;
+        }
+        else
+        {
+            try
+            {
+                if (fem_system.global_k_matrix.size() > 0 && fem_system.displacement.size() > 0 && fem_system.global_k_matrix.rows() == fem_system.displacement.size())
+                {
+                    reactions = fem_system.global_k_matrix * fem_system.displacement - fem_system.forces;
+                    have_reactions = (reactions.size() == fem_system.displacement.size());
+                }
+            }
+            catch (...)
+            {
+                have_reactions = false;
+            }
+        }
+
+        for (int i = 0; i < fem_system.nodes.size(); ++i)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", i + 1);
+
+            if (have_reactions)
+            {
+                double rx = fem_system.forceToDisplay(reactions(i * 3));
+                double ry = fem_system.forceToDisplay(reactions(i * 3 + 1));
+                double rtheta = reactions(i * 3 + 2);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%.3f", rx);
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.3f", ry);
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%.6f", rtheta);
+            }
+            else
+            {
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("0");
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("0");
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("0");
+            }
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::Separator();
+
+    // Export CSV UI
+    static char outname_buf[512] = "output.csv";
+    ImGui::InputText("CSV Filename", outname_buf, sizeof(outname_buf));
+    ImGui::SameLine();
+    if (ImGui::Button("Export CSV"))
+    {
+        std::string fname(outname_buf);
+        if (fname.size() < 4 || fname.substr(fname.size() - 4) != ".csv")
+            fname += ".csv";
+
+        std::ofstream ofs(fname);
+        if (!ofs)
+        {
+            error_msg = "Could not open CSV for writing.";
+            save_error = true;
+        }
+        else
+        {
+            ofs << "Nodes\n";
+            ofs << "Index,u,v,theta_deg,Constraint\n";
+            for (int i = 0; i < fem_system.nodes.size(); ++i)
+            {
+                double u = fem_system.lengthToDisplay(fem_system.displacement(i * 3));
+                double v = fem_system.lengthToDisplay(fem_system.displacement(i * 3 + 1));
+                double theta_deg = fem_system.displacement(i * 3 + 2) * 180.0 / M_PI;
+                const char *cstr = "";
+                switch (fem_system.nodes[i].constraint_type)
+                {
+                case Free:
+                    cstr = "Free";
+                    break;
+                case Fixed:
+                    cstr = "Fixed";
+                    break;
+                case FixedPin:
+                    cstr = "FixedPin";
+                    break;
+                case Slider:
+                    cstr = "Slider";
+                    break;
+                }
+                ofs << (i + 1) << "," << u << "," << v << "," << theta_deg << "," << cstr << "\n";
+            }
+
+            ofs << "\nBeams\n";
+            ofs << "Index,NodeA,NodeB,Stress,Material,Profile\n";
+            for (int i = 0; i < fem_system.beams.size(); ++i)
+            {
+                const auto &b = fem_system.beams[i];
+                double stress_disp = fem_system.stressToDisplay(b.stress);
+                std::string mat = (b.material_idx >= 0 && b.material_idx < fem_system.materials_list.size()) ? fem_system.materials_list[b.material_idx].name : "";
+                std::string prof = (b.shape_idx >= 0 && b.shape_idx < fem_system.beam_profiles_list.size()) ? fem_system.beam_profiles_list[b.shape_idx].name : "";
+                ofs << (i + 1) << "," << (b.nodes[0] + 1) << "," << (b.nodes[1] + 1) << "," << stress_disp << "," << mat << "," << prof << "\n";
+            }
+
+            ofs << "\nReactions\n";
+            ofs << "Node,Rx,Ry,Rtheta\n";
+            if (have_reactions)
+            {
+                for (int i = 0; i < fem_system.nodes.size(); ++i)
+                {
+                    double rx = fem_system.forceToDisplay(reactions(i * 3));
+                    double ry = fem_system.forceToDisplay(reactions(i * 3 + 1));
+                    double rtheta = reactions(i * 3 + 2);
+                    ofs << (i + 1) << "," << rx << "," << ry << "," << rtheta << "\n";
+                }
+            }
+            else
+            {
+                for (int i = 0; i < fem_system.nodes.size(); ++i)
+                    ofs << (i + 1) << ",0,0,0\n";
+            }
+
+            if (!ofs)
+            {
+                error_msg = "Error writing CSV file.";
+                save_error = true;
+            }
         }
     }
 
@@ -1663,6 +1915,11 @@ void GUIHandler::headerBar()
 
             ImGui::EndMenu();
         }
+        if (ImGui::MenuItem("Output"))
+        {
+            show_output_tab = !show_output_tab;
+        }
+
         if (ImGui::MenuItem("Help"))
         {
             show_help_page = !show_help_page;
