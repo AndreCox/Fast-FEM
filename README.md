@@ -1,6 +1,7 @@
 ## Fast-FEM
 
 **Author:** [Andre Cox](https://github.com/AndreCox)
+**Numerical Verification:** Asli Tuncer
 
 Fast-FEM is a compact, high-performance finite element method (FEM) sandbox written in C++ 17 with an immediate-mode GUI for interactive visualization and experimentation. It focuses on clarity and interactivity for rapid prototyping of beam elements, system assembly, and visualization. It supports Windows and Linux.
 
