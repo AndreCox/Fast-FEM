@@ -27,6 +27,9 @@ private:
     bool isFocused;
     bool dragStartedInside;
 
+    // undeformed system visualization toggle
+    bool visualize_undeformed = true;
+
     // Font for text rendering
     sf::Font font;
     mutable sf::Text text;
@@ -83,4 +86,8 @@ public:
     // Scale factor applied to computed displacements when rendering.
     // Public so UI or external code can adjust for visibility (default = 1.0 = no scaling).
     float displacementScale = 1.0f;
+    // Visual scaling for applied forces (N -> world units)
+    float forceScale = 500.0f;
+    // Visual scaling for reaction forces (N -> world units)
+    float reactionScale = 500.0f;
 };

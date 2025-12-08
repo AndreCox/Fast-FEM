@@ -16,7 +16,7 @@ For detailed documentation, see the [wiki](https://github.com/AndreCox/Fast-FEM/
 
 ---
 
-![Fast-FEM Demo](documentation/images/truss_demo.gif)
+![Fast-FEM Demo](documentation/images/hero.gif)
 
 ---
 

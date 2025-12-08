@@ -459,8 +459,79 @@ void GraphicsRenderer::drawSystem(sf::RenderWindow &window) const
     float nodeSize = baseNodeSize * viewScale;
     float arrowSize = baseArrowSize * viewScale;
 
+    // draw undeformed system under the deformed one when toggled on
+    if (visualize_undeformed)
+    {
+        sf::Color undeformedBeamColor(150, 150, 150, 160); // semi-transparent gray
+        sf::Color undeformedNodeColor(200, 200, 200, 180); // semi-transparent light gray
+
+        // draw beams (undeformed positions)
+        for (size_t i = 0; i < system.beams.size(); ++i)
+        {
+            const auto &beam = system.beams[i];
+            int n1_idx = beam.nodes[0];
+            int n2_idx = beam.nodes[1];
+
+            // undeformed endpoints (original positions, no displacement)
+            sf::Vector2f p0_original(
+                static_cast<float>(system.nodes[n1_idx].position[0]),
+                static_cast<float>(system.nodes[n1_idx].position[1]));
+
+            sf::Vector2f p3_original(
+                static_cast<float>(system.nodes[n2_idx].position[0]),
+                static_cast<float>(system.nodes[n2_idx].position[1]));
+
+            // Compute chord and avoid degenerate case
+            sf::Vector2f chordDir = p3_original - p0_original;
+            float chordLength = std::sqrt(chordDir.x * chordDir.x + chordDir.y * chordDir.y);
+            if (chordLength < 1e-6f)
+            {
+                drawThickLine(window, p0_original, p3_original, beamThickness * 0.6f, undeformedBeamColor);
+                continue;
+            }
+
+            // initial undeformed angle of the beam
+            sf::Vector2f initialDir(
+                static_cast<float>(system.nodes[n2_idx].position[0] - system.nodes[n1_idx].position[0]),
+                static_cast<float>(system.nodes[n2_idx].position[1] - system.nodes[n1_idx].position[1]));
+            float initialAngle = std::atan2(initialDir.y, initialDir.x);
+
+            // For undeformed visualization we align tangents with initial angle
+            float tangent1Angle = initialAngle;
+            float tangent2Angle = initialAngle;
+
+            // control distances
+            float controlDist = chordLength * 0.33f;
+            float controlDist1 = controlDist;
+            float controlDist2 = controlDist;
+
+            sf::Vector2f p1_control = p0_original + sf::Vector2f(std::cos(tangent1Angle) * controlDist1,
+                                                                 std::sin(tangent1Angle) * controlDist1);
+
+            sf::Vector2f p2_control = p3_original - sf::Vector2f(std::cos(tangent2Angle) * controlDist2,
+                                                                 std::sin(tangent2Angle) * controlDist2);
+
+            // draw undeformed beam (thinner)
+            drawCubicBezierThick(window, p0_original, p1_control, p2_control, p3_original, beamThickness * 0.6f, undeformedBeamColor, std::max(8, curveSegments / 2));
+        }
+
+        // draw undeformed nodes
+        for (size_t idx = 0; idx < system.nodes.size(); ++idx)
+        {
+            const auto &node = system.nodes[idx];
+            sf::Vector2f pos(static_cast<float>(node.position[0]), static_cast<float>(node.position[1]));
+
+            float radius = (nodeSize * 0.6f) / 2.0f;
+            sf::CircleShape circle(radius);
+            circle.setOrigin(sf::Vector2f(radius, radius));
+            circle.setPosition(pos);
+            circle.setFillColor(undeformedNodeColor);
+            window.draw(circle);
+        }
+    }
+
     // -------------------------
-    // Draw beams with stress-based colors
+    // Draw beams with stress-based colors (deformed)
     // -------------------------
     for (size_t i = 0; i < system.beams.size(); ++i)
     {
@@ -658,8 +729,8 @@ void GraphicsRenderer::drawSystem(sf::RenderWindow &window) const
     {
         const Node &node = system.nodes[i];
 
-        // scale factor for force visualization (increase to make arrows shorter)
-        const float arrowScale = 500.0f;
+        // scale factor for force visualization (use renderer setting)
+        const float arrowScale = forceScale;
         float fx = system.forces(i * 3) / arrowScale;
         float fy = system.forces(i * 3 + 1) / arrowScale;
 
@@ -696,8 +767,52 @@ void GraphicsRenderer::drawSystem(sf::RenderWindow &window) const
             window.draw(arrow, 3, sf::PrimitiveType::Triangles);
         }
     }
-}
 
+    // -------------------------
+    // Draw reaction forces as blue arrows (if available)
+    // -------------------------
+    if (system.reactions.size() == static_cast<int>(system.nodes.size()) * 3)
+    {
+        for (int i = 0; i < static_cast<int>(system.nodes.size()); ++i)
+        {
+            float rx = static_cast<float>(system.reactions(i * 3)) / this->reactionScale;
+            float ry = static_cast<float>(system.reactions(i * 3 + 1)) / this->reactionScale;
+
+            if (std::abs(rx) < 1e-6f && std::abs(ry) < 1e-6f)
+                continue;
+
+            sf::Vector2f start(system.nodes[i].position[0] + displacementScale * static_cast<float>(system.displacement(i * 3)),
+                               system.nodes[i].position[1] + displacementScale * static_cast<float>(system.displacement(i * 3 + 1)));
+            sf::Vector2f end = start + sf::Vector2f(rx, ry);
+
+            sf::Vertex line[2];
+            line[0].position = start;
+            line[0].color = sf::Color(0, 122, 255); // blue
+            line[1].position = end;
+            line[1].color = sf::Color(0, 122, 255);
+            window.draw(line, 2, sf::PrimitiveType::Lines);
+
+            // Arrowhead
+            sf::Vector2f dir = end - start;
+            float length = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+            if (length > 0)
+            {
+                sf::Vector2f unit = dir / length;
+                sf::Vector2f perp(-unit.y, unit.x);
+
+                sf::Vertex arrow[3];
+                arrow[0].position = end;
+                arrow[0].color = sf::Color(0, 122, 255);
+                arrow[1].position = end - unit * arrowSize + perp * (arrowSize / 2);
+                arrow[1].color = sf::Color(0, 122, 255);
+                arrow[2].position = end - unit * arrowSize - perp * (arrowSize / 2);
+                arrow[2].color = sf::Color(0, 122, 255);
+
+                window.draw(arrow, 3, sf::PrimitiveType::Triangles);
+            }
+        }
+    }
+}
 void GraphicsRenderer::centerView()
 {
     if (system.nodes.empty())

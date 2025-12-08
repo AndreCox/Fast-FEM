@@ -10,6 +10,12 @@
 
 #include "fem_system.h"
 
+// Unit conversion constants
+static constexpr double METERS_PER_FOOT = 0.3048;
+static constexpr double METERS_PER_INCH = 0.0254;
+static constexpr double NEWTONS_PER_POUND_FORCE = 4.4482216152605; // 1 lbf = 4.44822 N
+static constexpr double PASCAL_PER_PSI = 6894.757293168;           // 1 psi = 6894.757293168 Pa
+
 FEMSystem::FEMSystem(std::vector<Node> &n, std::vector<Beam> &s, std::vector<MaterialProfile> &materials, std::vector<BeamProfile> &beam_profiles)
 
     : nodes(n), beams(s), materials_list(materials), beam_profiles_list(beam_profiles), max_stress(0.0f), min_stress(0.0f)
@@ -18,6 +24,152 @@ FEMSystem::FEMSystem(std::vector<Node> &n, std::vector<Beam> &s, std::vector<Mat
     total_dof = static_cast<int>(nodes.size()) * 3; // 3 DOF per node (x,y and theta)
     displacement = Eigen::VectorXd::Zero(total_dof);
     forces = Eigen::VectorXd::Zero(total_dof);
+}
+
+void FEMSystem::setUnitSystem(UnitSystem u)
+{
+    unit_system = u;
+}
+
+double FEMSystem::lengthToDisplay(double meters) const
+{
+    if (unit_system == Metric)
+        return meters; // meters
+    if (unit_system == ImperialFeet)
+        return meters / METERS_PER_FOOT; // feet
+    // ImperialInches
+    return meters / METERS_PER_INCH; // inches
+}
+
+double FEMSystem::lengthFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display;
+    if (unit_system == ImperialFeet)
+        return display * METERS_PER_FOOT;
+    // ImperialInches
+    return display * METERS_PER_INCH;
+}
+
+double FEMSystem::areaToDisplay(double m2) const
+{
+    if (unit_system == Metric)
+        return m2;
+    if (unit_system == ImperialFeet)
+    {
+        double factor = 1.0 / (METERS_PER_FOOT * METERS_PER_FOOT);
+        return m2 * factor; // ft^2
+    }
+    // in^2
+    double factor = 1.0 / (METERS_PER_INCH * METERS_PER_INCH);
+    return m2 * factor;
+}
+
+double FEMSystem::areaFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display;
+    if (unit_system == ImperialFeet)
+        return display * METERS_PER_FOOT * METERS_PER_FOOT;
+    return display * METERS_PER_INCH * METERS_PER_INCH;
+}
+
+double FEMSystem::inertiaToDisplay(double m4) const
+{
+    if (unit_system == Metric)
+        return m4;
+    if (unit_system == ImperialFeet)
+    {
+        double factor = 1.0 / (METERS_PER_FOOT * METERS_PER_FOOT * METERS_PER_FOOT * METERS_PER_FOOT);
+        return m4 * factor; // ft^4
+    }
+    double factor = 1.0 / (METERS_PER_INCH * METERS_PER_INCH * METERS_PER_INCH * METERS_PER_INCH);
+    return m4 * factor; // in^4
+}
+
+double FEMSystem::inertiaFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display;
+    if (unit_system == ImperialFeet)
+    {
+        double factor = METERS_PER_FOOT * METERS_PER_FOOT * METERS_PER_FOOT * METERS_PER_FOOT;
+        return display * factor;
+    }
+    // ImperialInches
+    double factor = METERS_PER_INCH * METERS_PER_INCH * METERS_PER_INCH * METERS_PER_INCH;
+    return display * factor;
+}
+
+double FEMSystem::sectionModulusToDisplay(double m3) const
+{
+    if (unit_system == Metric)
+        return m3;
+    if (unit_system == ImperialFeet)
+    {
+        double factor = 1.0 / (METERS_PER_FOOT * METERS_PER_FOOT * METERS_PER_FOOT);
+        return m3 * factor; // ft^3
+    }
+    // ImperialInches
+    double factor = 1.0 / (METERS_PER_INCH * METERS_PER_INCH * METERS_PER_INCH);
+    return m3 * factor; // in^3
+}
+
+double FEMSystem::sectionModulusFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display;
+    if (unit_system == ImperialFeet)
+        return display * METERS_PER_FOOT * METERS_PER_FOOT * METERS_PER_FOOT;
+    return display * METERS_PER_INCH * METERS_PER_INCH * METERS_PER_INCH;
+}
+
+double FEMSystem::forceToDisplay(double N) const
+{
+    if (unit_system == Metric)
+        return N; // Newtons
+    // both ImperialFeet and ImperialInches display force in lbf
+    return N / NEWTONS_PER_POUND_FORCE;
+}
+
+double FEMSystem::forceFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display;
+    return display * NEWTONS_PER_POUND_FORCE;
+}
+
+double FEMSystem::modulusToDisplay(double Pa) const
+{
+    if (unit_system == Metric)
+        return Pa; // Pa as internal; GUI may choose to display /1e6 for MPa
+    // both ImperialFeet and ImperialInches use psi for modulus/stress
+    return Pa / PASCAL_PER_PSI;
+}
+
+double FEMSystem::modulusFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display;
+    return display * PASCAL_PER_PSI;
+}
+
+double FEMSystem::stressToDisplay(double Pa) const
+{
+    if (unit_system == Metric)
+    {
+        // show MPa in metric UI
+        return Pa / 1e6;
+    }
+    // show psi in imperial UI
+    return Pa / PASCAL_PER_PSI;
+}
+
+double FEMSystem::stressFromDisplay(double display) const
+{
+    if (unit_system == Metric)
+        return display * 1e6;
+    return display * PASCAL_PER_PSI;
 }
 
 // MPC (Multi-Point Constraint) for slider nodes
@@ -120,7 +272,8 @@ int FEMSystem::solve_system()
 
     if (num_free_dofs == 0)
     {
-        std::cout << "No free DOFs to solve!" << std::endl;
+        if (debug)
+            std::cout << "No free DOFs to solve!" << std::endl;
         return -1;
     }
 
@@ -137,10 +290,13 @@ int FEMSystem::solve_system()
         F_r(i) = forces(free_dof_indices[i]);
     }
 
-    std::cout << "Reduced Stiffness Matrix (" << num_free_dofs << "x" << num_free_dofs << "):\n"
-              << K_r << std::endl;
-    std::cout << "Reduced Force Vector:\n"
-              << F_r << std::endl;
+    if (debug)
+    {
+        std::cout << "Reduced Stiffness Matrix (" << num_free_dofs << "x" << num_free_dofs << "):\n"
+                  << K_r << std::endl;
+        std::cout << "Reduced Force Vector:\n"
+                  << F_r << std::endl;
+    }
 
     // step 5 Identify slider nodes
     std::vector<int> slider_nodes;
@@ -180,9 +336,9 @@ int FEMSystem::solve_system()
             generate_constraint_row(C_r, ci, node_id, free_dof_indices);
         }
 
-        std::cout << "Constraint Matrix C_r (" << num_constraints << "x" << num_free_dofs << "):\n"
-
-                  << C_r << std::endl;
+        if (debug)
+            std::cout << "Constraint Matrix C_r (" << num_constraints << "x" << num_free_dofs << "):\n"
+                      << C_r << std::endl;
 
         // Scale the constraints to match the stiffness matrix magnitude for better conditioning
 
@@ -246,41 +402,50 @@ int FEMSystem::solve_system()
         }
 
         if (std::isfinite(cond))
-            std::cout << "Saddle approx cond num: " << cond << std::endl;
-        else
-            std::cout << "Saddle approx cond num: INF or ill-conditioned (smallest singular value ~ 0)" << std::endl;
+            if (debug)
+                std::cout << "Saddle approx cond num: " << cond << std::endl;
+            else if (debug)
+                std::cout << "Saddle approx cond num: INF or ill-conditioned (smallest singular value ~ 0)" << std::endl;
 
-        std::cout << "Node constraint types:\n";
+        if (debug)
+            std::cout << "Node constraint types:\n";
         for (int i = 0; i < num_nodes; ++i)
-            std::cout << "  Node " << i << " type=" << nodes[i].constraint_type << " angle=" << nodes[i].constraint_angle << "\n";
+            if (debug)
+                std::cout << "  Node " << i << " type=" << nodes[i].constraint_type << " angle=" << nodes[i].constraint_angle << "\n";
 
-        std::cout << "free_dof_indices (" << num_free_dofs << "): ";
+        if (debug)
+            std::cout << "free_dof_indices (" << num_free_dofs << "): ";
         for (int d : free_dof_indices)
-            std::cout << d << " ";
-        std::cout << std::endl;
+            if (debug)
+                std::cout << d << " ";
+        if (debug)
+            std::cout << std::endl;
 
-        std::cout << "slider_nodes (" << num_constraints << "): ";
+        if (debug)
+            std::cout << "slider_nodes (" << num_constraints << "): ";
         for (int s : slider_nodes)
-            std::cout << s << " ";
-        std::cout << std::endl;
+            if (debug)
+                std::cout << s << " ";
+        if (debug)
+            std::cout << std::endl;
 
-        std::cout << "Displacement (all DOFs) before reactions:\n"
-                  << displacement.transpose() << std::endl;
+        if (debug)
+            std::cout << "Displacement (all DOFs) before reactions:\n"
+                      << displacement.transpose() << std::endl;
 
         // And print the constraint matrix
-        std::cout << "C_r:\n"
-                  << C_r << std::endl;
+        if (debug)
+            std::cout << "C_r:\n"
+                      << C_r << std::endl;
 
         // Solve the saddle point system
 
         Eigen::VectorXd full_solution = saddle_matrix.fullPivLu().solve(saddle_rhs);
 
         if (full_solution.size() != augmented_size)
-
         {
-
-            std::cerr << "Saddle point solver failed or returned unexpected size." << std::endl;
-
+            if (debug)
+                std::cerr << "Saddle point solver failed or returned unexpected size." << std::endl;
             return -2;
         }
 
@@ -307,7 +472,8 @@ int FEMSystem::solve_system()
     }
 
     // Print solution summary
-    std::cout << "\n=== SOLUTION ===\n";
+    if (debug)
+        std::cout << "\n=== SOLUTION ===\n";
     for (int i = 0; i < num_nodes; ++i)
     {
         // The three DOFs for node i are at indices i*3, i*3+1, and i*3+2
@@ -321,7 +487,8 @@ int FEMSystem::solve_system()
         double total_disp_mag = std::sqrt(u * u + v * v);
 
         // Updated output includes rotation
-        std::cout << "  Node " << i << ": u=" << u << " m, v=" << v << " m, theta=" << theta_deg << " deg (total disp=" << total_disp_mag << " m)\n";
+        if (debug)
+            std::cout << "  Node " << i << ": u=" << u << " m, v=" << v << " m, theta=" << theta_deg << " deg (total disp=" << total_disp_mag << " m)\n";
 
         if (nodes[i].constraint_type == Slider)
         {
@@ -340,17 +507,22 @@ int FEMSystem::solve_system()
             double perp_slider = -u * s_track + v * c_track;
 
             // The total displacement of the node should be explained as movement along the track.
-            std::cout << "    Movement along track (" << nodes[i].constraint_angle << "°): " << along_slider << " m\n";
+            if (debug)
+                std::cout << "    Movement along track (" << nodes[i].constraint_angle << "°): " << along_slider << " m\n";
 
             // The perpendicular movement should be very close to zero if the constraint worked.
-            std::cout << "    Movement perpendicular to track: " << perp_slider << " m (should be ~0)\n";
+            if (debug)
+                std::cout << "    Movement perpendicular to track: " << perp_slider << " m (should be ~0)\n";
         }
     }
 
     // Calculate reaction forces and moments at supports
     // R = K*u - F. This 3N vector contains forces (Fx, Fy) and moments (Mz)
     Eigen::VectorXd reactions = global_k_matrix * displacement - forces;
-    std::cout << "\nReaction Forces & Moments (N, Nm):\n";
+    // Store reactions for external inspection/visualization
+    this->reactions = reactions;
+    if (debug)
+        std::cout << "\nReaction Forces & Moments (N, Nm):\n";
 
     double total_reaction_x = 0.0;
     double total_reaction_y = 0.0;
@@ -373,7 +545,8 @@ int FEMSystem::solve_system()
             double ry = reactions(i * 3 + 1); // y-Reaction Force
             double rm = reactions(i * 3 + 2); // z-Reaction Moment
 
-            std::cout << "  Node " << i << " (" << constraint_str << "): Fx=" << rx << " N, Fy=" << ry << " N, Mz=" << rm << " Nm\n";
+            if (debug)
+                std::cout << "  Node " << i << " (" << constraint_str << "): Fx=" << rx << " N, Fy=" << ry << " N, Mz=" << rm << " Nm\n";
 
             total_reaction_x += rx;
             total_reaction_y += ry;
@@ -393,24 +566,27 @@ int FEMSystem::solve_system()
         total_applied_m += forces(i * 3 + 2);
     }
 
-    std::cout << "\nEquilibrium Check:\n";
-    std::cout << "  Applied Fx = " << total_applied_x << " N\n";
-    std::cout << "  Applied Fy = " << total_applied_y << " N\n";
-    std::cout << "  Applied Mz = " << total_applied_m << " Nm\n";
-    std::cout << "  Reaction Fx = " << total_reaction_x << " N\n";
-    std::cout << "  Reaction Fy = " << total_reaction_y << " N\n";
-    std::cout << "  Reaction Mz = " << total_reaction_m << " Nm\n";
-    std::cout << "  Balance (Fx): " << (total_applied_x + total_reaction_x) << " N (should be ~0)\n";
-    std::cout << "  Balance (Fy): " << (total_applied_y + total_reaction_y) << " N (should be ~0)\n";
-    std::cout << "  Balance (Mz): " << (total_applied_m + total_reaction_m) << " Nm (should be ~0)\n";
+    if (debug)
+    {
+        std::cout << "\nEquilibrium Check:\n";
+        std::cout << "  Applied Fx = " << total_applied_x << " N\n";
+        std::cout << "  Applied Fy = " << total_applied_y << " N\n";
+        std::cout << "  Applied Mz = " << total_applied_m << " Nm\n";
+        std::cout << "  Reaction Fx = " << total_reaction_x << " N\n";
+        std::cout << "  Reaction Fy = " << total_reaction_y << " N\n";
+        std::cout << "  Reaction Mz = " << total_reaction_m << " Nm\n";
+        std::cout << "  Balance (Fx): " << (total_applied_x + total_reaction_x) << " N (should be ~0)\n";
+        std::cout << "  Balance (Fy): " << (total_applied_y + total_reaction_y) << " N (should be ~0)\n";
+        std::cout << "  Balance (Mz): " << (total_applied_m + total_reaction_m) << " Nm (should be ~0)\n";
+    }
 
     // Calculate internal forces and stresses in beams
-    std::cout << "\nBeam Internal Forces (N, tension positive):\n";
+    if (debug)
+        std::cout << "\nBeam Internal Forces (N, tension positive):\n";
 
     max_stress = -1e10f;
     min_stress = 1e10f;
 
-    std::cout << "\nBeam Internal Forces and Moments (N, Nm):\n";
     int index = 0;
     for (auto &beam : beams) // Renamed 'spring' to 'beam' for clarity
     {
@@ -479,7 +655,8 @@ int FEMSystem::solve_system()
         beam.max_moment = max_M;
 
         // Output Internal Forces and Moments
-        std::cout << "  Beam " << index << " (nodes " << n1 << "-" << n2 << "): P=" << P << " N, M1=" << M1 << " Nm, M2=" << M2 << " Nm\n";
+        if (debug)
+            std::cout << "  Beam " << index << " (nodes " << n1 << "-" << n2 << "): P=" << P << " N, M1=" << M1 << " Nm, M2=" << M2 << " Nm\n";
 
         // --- 6. Calculate Combined Stress ---
         const BeamProfile &shape = beam_profiles_list[beam.shape_idx];
@@ -516,16 +693,19 @@ int FEMSystem::solve_system()
         ++index;
     }
 
-    std::cout << "\nBeam Maximum Absolute Combined Stresses (MPa):\n";
+    if (debug)
+        std::cout << "\nBeam Maximum Absolute Combined Stresses (MPa):\n";
     index = 0;
     for (const auto &beam : beams)
     {
-        std::cout << "  Beam " << index << " (nodes " << beam.nodes[0] << "-" << beam.nodes[1]
-                  << "): " << beam.stress << " MPa\n";
+        if (debug)
+            std::cout << "  Beam " << index << " (nodes " << beam.nodes[0] << "-" << beam.nodes[1]
+                      << "): " << beam.stress << " MPa\n";
         ++index;
     }
 
-    std::cout << "\nStress Range: " << min_stress << " to " << max_stress << " MPa (Max Absolute Combined Stress)\n";
+    if (debug)
+        std::cout << "\nStress Range: " << min_stress << " to " << max_stress << " MPa (Max Absolute Combined Stress)\n";
 
     return 0;
 }
@@ -561,6 +741,7 @@ void FEMSystem::assemble_global_stiffness()
         }
     }
 
-    std::cout << "Global Stiffness Matrix (" << total_dof << "x" << total_dof << "):\n"
-              << global_k_matrix << std::endl;
+    if (debug)
+        std::cout << "Global Stiffness Matrix (" << total_dof << "x" << total_dof << "):\n"
+                  << global_k_matrix << std::endl;
 }

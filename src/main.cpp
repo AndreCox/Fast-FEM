@@ -33,17 +33,17 @@ int main()
 
     const double PI = 3.14159265358979323846;
 
-    const double diameter_steel = 0.5;    // in
-    const double diameter_aluminum = 0.4; // in
+    const double diameter_steel = 0.0127;     // m
+    const double diameter_aluminum = 0.01016; // m
 
-    const double A_steel = PI * std::pow(diameter_steel / 2.0, 2);          // in^2
-    const double A_aluminum = PI * std::pow(diameter_aluminum / 2.0, 2);    // in^2
-    const double I_steel = (PI / 64.0) * std::pow(diameter_steel, 4);       // in^4
-    const double I_aluminum = (PI / 64.0) * std::pow(diameter_aluminum, 4); // in^4
-    const double S_steel = I_steel / (diameter_steel / 2.0);                // in^3
-    const double S_aluminum = I_aluminum / (diameter_aluminum / 2.0);       // in^3
-    const double E_steel = 30e6;                                            // Psi
-    const double E_aluminum = 10e6;                                         // Psi
+    const double A_steel = PI * std::pow(diameter_steel / 2.0, 2);          // m^2
+    const double A_aluminum = PI * std::pow(diameter_aluminum / 2.0, 2);    // m^2
+    const double I_steel = (PI / 64.0) * std::pow(diameter_steel, 4);       // m^4
+    const double I_aluminum = (PI / 64.0) * std::pow(diameter_aluminum, 4); // m^4
+    const double S_steel = I_steel / (diameter_steel / 2.0);                // m^3
+    const double S_aluminum = I_aluminum / (diameter_aluminum / 2.0);       // m^3
+    const double E_steel = 2.068427e11;                                     // Pa
+    const double E_aluminum = 7.584233e+10;                                 // Pa
 
     // idiot check print out material and beam properties
     std::cout << "Steel Material Properties:" << std::endl;
@@ -88,11 +88,11 @@ int main()
     // Define nodes
     std::vector<Node>
         nodes = {
-            Node(12.0f, 0.0f, Free),
-            Node(12.0f, 6.0f, Free),
+            Node(0.3048f, 0.0f, Free),
+            Node(0.3048f, 0.1524f, Free),
             Node(0.0f, 0.0f, Slider, 90.0f),
-            Node(0.0f, 10.0f, Free),
-            Node(-10.0f, 10.0f, Fixed),
+            Node(0.0f, 0.254f, Free),
+            Node(-0.254f, 0.254f, Fixed),
         };
 
     // Define beams (beams)
@@ -108,11 +108,11 @@ int main()
 
     FEMSystem fem_system(nodes, beams, material_profiles, beam_profiles);
 
-    fem_system.unit_system = Imperial;
+    fem_system.unit_system = ImperialInches;
 
     // Course Project 2 Loads
-    fem_system.forces(0 * 3) = -1904.8259;
-    fem_system.forces(0 * 3 + 1) = -609.6212;
+    fem_system.forces(0 * 3) = -8896.4432305 * cos(60 * M_PI / 180.0);
+    fem_system.forces(0 * 3 + 1) = -8896.4432305 * sin(60 * M_PI / 180.0);
 
     // Initialize the renderer
     GraphicsRenderer renderer(fem_system);
