@@ -20,6 +20,11 @@
 #include "graphics.h"
 #include "gui_handler.h"
 
+// PI definition
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 int main()
 {
     sf::Vector2u window_size(1200, 600);
